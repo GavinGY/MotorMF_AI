@@ -43,6 +43,7 @@
 #include "adc.h"
 #include "dma.h"
 #include "led.h"
+#include "string.h"
 
 /** @addtogroup STM32F1xx_HAL_Examples
   * @{
@@ -113,10 +114,36 @@ void OutPut_Data()
   HAL_UART_Transmit(&UART1_Handler,(uint8_t*)databuf,10,1000);	//发送接收到的数据
 }
 
+
+//将 int整形 转成 str字符串型
+char textbuff[20]={0};
+char *int2Str(unsigned int dat)
+{
+	char temp[20];
+    unsigned char i=0,j=0;
+	i=0;
+	
+	do { //从低位（个位）往高位取值，直到到达最高位
+		temp[i]=dat%10+0x30;//取值，+0x30转成ASCII码
+		i++;
+		dat/=10;
+	}while(dat); //先do后判断可以包含0的情况
+	j=i;
+	//倒转字符顺序
+	for(i=0;i<j;i++)
+		textbuff[i]=temp[j-i-1];
+	textbuff[i++]='\0';//字符串最后加上字符结束符
+	
+	return textbuff;
+}
+
 float ADC_ConvertedValueLocal;
 // AD转换结果值
-uint16_t ADC_ConvertedValue[5000]={0};
+uint16_t ADC_ConvertedValue[2000]={0};
+uint16_t ADC_ConvertedValue_temp[1500]={0};
 uint32_t DMA_Transfer_Complete_Count=0;
+
+int quickSort(int *a,int left,int right);
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -166,6 +193,24 @@ int main(void)
 	HAL_ADC_Start_DMA(&ADC1_Handler,&ADC_ConvertedValue,sizeof(ADC_ConvertedValue)/sizeof(uint16_t));  
 	delay_ms(500);
 	
+	int fanChek=0;
+	
+	// 启动 log
+	delay_ms(500);
+	USART1_Puts("\
+	 \
+	##########################################################################\
+	-----                XB6/XB7 FAN Detection Fixture                   -----\
+	-----              Detection of magnetic field motor                 -----\
+	-----                                 Firmware Version V1.1-20190327 -----\
+	-----    Tools by the Foxconn Cable SoftWare R&D team.    2018/11/21 -----\
+	##########################################################################\
+	HOW TO USE: \r\n \
+	Command \" CHECK \":Normal mode, check the motor state. \r\n \
+	Command \" EDIT \":Debug mode, check the value of the zero sliding rheostat. \r\n \
+	\
+	");
+	
 	/* Infinite loop */
 	while(1)
 	{
@@ -208,7 +253,7 @@ int main(void)
 		//HAL_UART_Transmit(&UART1_Handler,(uint8_t*)Test_RX_BUF,2,1000);	//发送接收到的数据
 		//while(__HAL_UART_GET_FLAG(&UART1_Handler,UART_FLAG_TC)!=SET);		//等待发送结束
 		
-		LED0=!LED0;
+		
 		
 		// u32 temp_val[2]={0};
 		// u8 t;
@@ -247,22 +292,113 @@ int main(void)
 			// OutPut_Data();
 		// }
 		
-		// for(int i=0;i<5000;i++)
-		// {
-			// OutData[0] = (u16)(ADC_ConvertedValue[i]&0xFFF);
-			// OutPut_Data();
+		
+		// 连续完全采样一次
+		// LED0=!LED0;
+		// while(1){
+			// LED0=1; //灭
+			//复制前1500的数据（DMA采样值，循环采样会覆盖）
+			// for(int i=0;i<1500;i++)
+				// ADC_ConvertedValue_temp[i]=ADC_ConvertedValue[i];
+			//对采样值进行快速排序
+			// quickSort(ADC_ConvertedValue_temp,0,1500-1);
+			//打印快速排序后的结果
+			// for(int i=0;i<1500;i++){
+				// OutData[0] = (u16)(ADC_ConvertedValue_temp[i]&0xFFF);
+				// OutPut_Data();
+			// }
+			//打印计算结果
+			// USART1_Puts(int2Str(abs(ADC_ConvertedValue_temp[1495] - ADC_ConvertedValue_temp[5]))); 
+			// USART1_Puts("\n");
+			// LED0=0;//亮
+		    // delay_ms(500);	
 		// }
 		
-		// while(1);
 		
-		while(1){
-			for(int i=0;i<100;i++)
-			{
-				OutData[0] = (u16)(ADC_ConvertedValue[i*50]&0xFFF);
-				OutPut_Data();
+		// 根据需求开启判断
+		if(fanChek==1){ //正常模式
+			int chekNumber=0;
+			for(int j=0;j<10;j++){ //检测10次
+				for(int i=0;i<1500;i++)
+					ADC_ConvertedValue_temp[i]=ADC_ConvertedValue[i];
+				quickSort(ADC_ConvertedValue_temp,0,1500-1);
+				if((ADC_ConvertedValue_temp[1495] - ADC_ConvertedValue_temp[5]) > 90)
+					chekNumber ++; //满足条件的次数统计
+			}
+			int chekMid = (ADC_ConvertedValue_temp[1495] + ADC_ConvertedValue_temp[5])/2;
+			if(chekMid > 1700 || chekMid < 300){ // 检查电位器AD中间值的区间
+			    USART1_Puts("Fixture Error ! Please check the value of the zero sliding rheostat! \n");
+				delay_ms(50);	
+				USART1_Puts("---> Value of the zero: ");
+				USART1_Puts(int2Str(chekMid));
+				USART1_Puts("\n");
+				delay_ms(50);	
+				USART1_Puts("---> send \"EDIT\" go to debug mode, suggest zero value: 1000 ! \n");
+				delay_ms(50);	
+				USART1_Puts("---> send \"CHECK\" to return to normal mode ! \n");
+			}
+			else if (chekNumber > 1) // 至少满足2次条件
+				USART1_Puts("Detection: OK, FAN is Work ! \n");
+			else
+				USART1_Puts("Detection: Failed, FAN not Work !!! \n");
+			chekNumber = 0;
+			fanChek = 0;
+		}
+		else if (fanChek == 2) {// 调试模式
+			for(int i=0;i<1500;i++)
+				ADC_ConvertedValue_temp[i]=ADC_ConvertedValue[i];
+			quickSort(ADC_ConvertedValue_temp,0,1500-1);
+			USART1_Puts("Value of the zero(suggest value 1000): ");
+			USART1_Puts(int2Str((ADC_ConvertedValue_temp[1495] + ADC_ConvertedValue_temp[5])/2));
+			USART1_Puts("\n");
+			delay_ms(500);
+		}
+
+	    
+		// 测试串口接收和发送
+		if((USART_RX_STA & 0xC000) == 0xC000){ //判断高两位是否为11
+			USART_RX_BUF[USART_RX_STA & 0X3FFF] = '\0';//加上字符结束符
+			//USART1_Puts("USART_RX_STA: ");
+			//USART1_Puts(int2Str(USART_RX_STA & 0X3FFF)); //去掉高两位保留其他位数，即为接收的字节数
+			USART_RX_STA=0;
+			//USART1_Puts("\n");
+			//delay_ms(100);
+			//USART1_Puts("USART_RX Revive: ");
+			//USART1_Puts(USART_RX_BUF); 
+			//USART1_Puts("\n"); 
+			//delay_ms(100);
+			if(!strcasecmp(USART_RX_BUF,"CHECK")){
+				USART1_Puts("CHECK Mode: ");
+				fanChek = 1;
+				delay_ms(100);
+			}
+			else if(!strcasecmp(USART_RX_BUF,"EDIT")){
+				USART1_Puts("------------  EDIT Mode  ------------\n");
+				fanChek = 2;
+				delay_ms(100);
 			}
 		}
 
+		
+		
+		// 连续抽取采样
+		// while(1){
+			// for(int i=0;i<100;i++)
+			// {
+				// OutData[0] = (u16)(ADC_ConvertedValue[i*50]&0xFFF);
+				// OutPut_Data();
+			// }
+		// }
+
+		
+		//测试整形转字符串，并通过串口发送字符串
+		// USART1_Puts(int2Str(0)); USART1_Puts("\n"); delay_ms(100);
+		// USART1_Puts(int2Str(1)); USART1_Puts("\n"); delay_ms(100);
+		// USART1_Puts(int2Str(10)); USART1_Puts("\n"); delay_ms(100);
+		// USART1_Puts(int2Str(188888)); USART1_Puts("\n"); delay_ms(100);
+		// USART1_Puts("abcd\n");
+		// delay_ms(500);
+		
 		
 		// for(int i = 1000;i>0;i--)
 		// {
@@ -281,8 +417,36 @@ int main(void)
 	}
 }
 
-
-
+//快速排序算法
+void swap(int *x, int *y) {
+    int tmp = *x;
+    *x = *y;
+    *y = tmp;
+}
+//分治法把数组分成两份
+int patition(int *a, int left,int right) {
+    int j = left;    //用来遍历数组
+    int i = j - 1;    //用来指向小于基准元素的位置
+    int key = a[right];    //基准元素(这里为数组的最后一个元素)
+    //从左到右遍历数组，把小于等于基准元素的放到左边，大于基准元素的放到右边
+    for (; j < right; ++j) {
+        if (a[j] <= key)
+            swap(&a[j], &a[++i]);
+    }
+    //把基准元素放到中间
+    swap(&a[right], &a[++i]);
+    //返回数组中间位置
+    return i;
+}
+//快速排序 (递归，直到基准情形出现)
+int quickSort(int *a,int left,int right) {
+    if (left>=right)
+        return 0;
+    int mid = patition(a,left,right);
+    quickSort(a, left, mid - 1);
+    quickSort(a, mid + 1, right);
+    return 0;
+}
 
 /**
   * @brief  System Clock Configuration
