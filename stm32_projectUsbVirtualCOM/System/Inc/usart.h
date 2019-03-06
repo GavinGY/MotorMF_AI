@@ -36,6 +36,8 @@ extern UART_HandleTypeDef UART1_Handler; 	//UART句柄
 #define RXBUFFERSIZE   1 					//缓存大小
 extern u8 aRxBuffer[RXBUFFERSIZE];			//HAL库USART接收Buffer
 
+void USART1_Puts(char * str);      
+
 //如果想串口中断接收，请不要注释以下宏定义
 void uart_init(u32 bound);
 #endif

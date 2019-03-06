@@ -102,7 +102,10 @@ C_INCLUDES = \
 -IDrivers/CMSIS/Device/Inc \
 -IDrivers/CMSIS/Inc \
 -IDrivers/BSP/STM32F1xx_Nucleo \
--ISystem/Inc
+-ISystem/Inc \
+-IMiddlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc \
+-IMiddlewares/ST/STM32_USB_Device_Library/Core/Inc
+
 
 
 # compile gcc flags

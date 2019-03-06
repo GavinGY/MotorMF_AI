@@ -21,6 +21,7 @@ void Stm32_Clock_Init(u32 PLL)
     HAL_StatusTypeDef ret = HAL_OK;
     RCC_OscInitTypeDef RCC_OscInitStructure; 
     RCC_ClkInitTypeDef RCC_ClkInitStructure;
+	RCC_PeriphCLKInitTypeDef PeriphClkInit;
     
     RCC_OscInitStructure.OscillatorType=RCC_OSCILLATORTYPE_HSE;    	//时钟源为HSE
     RCC_OscInitStructure.HSEState=RCC_HSE_ON;                      	//打开HSE
@@ -41,7 +42,13 @@ void Stm32_Clock_Init(u32 PLL)
     ret=HAL_RCC_ClockConfig(&RCC_ClkInitStructure,FLASH_LATENCY_2);	//同时设置FLASH延时周期为2WS，也就是3个CPU周期。
 		
     if(ret!=HAL_OK) while(1);
+	
+	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
+	PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
+	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) while(1);
+
 }
+
 
 #ifdef  USE_FULL_ASSERT
 //当编译提示出错的时候此函数用来报告错误的文件和所在行

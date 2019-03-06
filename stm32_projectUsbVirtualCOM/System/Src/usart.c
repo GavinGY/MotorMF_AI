@@ -58,6 +58,21 @@ int fputc(int ch, FILE *f)
 }
 #endif 
 
+/**********************************************************
+** 函数名:USART1_Puts
+** 功能描述: 串口1发送一字符串
+** 输入参数: 指针str
+** 输出参数: 无
+***********************************************************/
+void USART1_Puts(char * str)
+{
+	while(*str)
+	{
+		USART1->DR= *str++;
+		while((USART1->SR&0X40)==0);//等待发送完成
+	}
+}
+
 
 #if EN_USART1_RX   //如果使能了接收
 //串口1中断服务程序
@@ -122,15 +137,19 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 	}
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) // Gavin: 串口接收中断回调，接收一个字节就会产生回调
 {
 	if(huart->Instance==USART1)//如果是串口1
-	{
+	{   //Gavin: USART_RX_STA 最高位用来标记是否接收完成，高二为标记是否收到回车符，余下位数用来标记接收的字节数
 		if((USART_RX_STA&0x8000)==0)//接收未完成
 		{
-			if(USART_RX_STA&0x4000)//接收到了0x0d
+			if(USART_RX_STA&0x4000)//接收到了0x0d，Gavin: 0x0D（asc码是13） 指的是“回车”   \r是把光标置于本行行首
 			{
-				if(aRxBuffer[0]!=0x0a)USART_RX_STA=0;//接收错误,重新开始
+				if(aRxBuffer[0]!=0x0a)
+					USART_RX_STA=0;//接收错误,重新开始
+			    // Gavin: 因为如果发送端使用回车换行符，收到回车后下一个就是换行符了;
+				// Gavin: 0x0A（asc码是10） 指的是“换行”    \n是把光标置于下一行的同一列
+				// Gavin: 0x0D + 0x0A        回车换行          \r\n把光标置于下一行行首 
 				else USART_RX_STA|=0x8000;	//接收完成了 
 			}
 			else //还没收到0X0D

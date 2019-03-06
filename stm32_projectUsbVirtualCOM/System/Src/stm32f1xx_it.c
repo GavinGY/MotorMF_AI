@@ -41,7 +41,8 @@
 #include "main.h"
 #include "stm32f1xx_it.h"
 #include "adc.h"
-   
+
+
 /** @addtogroup STM32F1xx_HAL_Examples
   * @{
   */
@@ -50,13 +51,8 @@
   * @{
   */
 
-/* Private typedef -----------------------------------------------------------*/
-/* Private define ------------------------------------------------------------*/
-/* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
-
-/* Private function prototypes -----------------------------------------------*/
-/* Private functions ---------------------------------------------------------*/
+/* External variables --------------------------------------------------------*/
+extern PCD_HandleTypeDef hpcd_USB_FS;
 
 /******************************************************************************/
 /*            Cortex-M3 Processor Exceptions Handlers                         */
@@ -168,32 +164,18 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
-  * @brief  This function handles PPP interrupt request.
-  * @param  None
-  * @retval None
+* @brief This function handles USB low priority or CAN RX0 interrupts.
   */
-/*void PPP_IRQHandler(void)
+void USB_LP_CAN1_RX0_IRQHandler(void)
 {
-}*/
+  /* USER CODE BEGIN USB_LP_CAN1_RX0_IRQn 0 */
 
-// void DMA1_Channel1_IRQHandler(void)
-// {
-  // /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
+  /* USER CODE END USB_LP_CAN1_RX0_IRQn 0 */
+  HAL_PCD_IRQHandler(&hpcd_USB_FS);
+  /* USER CODE BEGIN USB_LP_CAN1_RX0_IRQn 1 */
 
-  // /* USER CODE END DMA1_Channel1_IRQn 0 */
-  // HAL_DMA_IRQHandler(&ADC1_DMA1_Handler);
-  // /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
+  /* USER CODE END USB_LP_CAN1_RX0_IRQn 1 */
+}
 
-  // /* USER CODE END DMA1_Channel1_IRQn 1 */
-// }
-
-
-/**
-  * @}
-  */ 
-
-/**
-  * @}
-  */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
